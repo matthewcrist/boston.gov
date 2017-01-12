@@ -699,7 +699,7 @@ class FeatureContext extends RawDrupalContext implements SnippetAcceptingContext
       $this->logout();
     }
     $password = 'test1P*tttt';
-    $this->getSession()->visit($this->locatePath('/user'));
+    $this->getSession()->visit($this->locatePath('/user?local'));
     $element = $this->getSession()->getPage();
     $element->fillField($this->getDrupalText('username_field'), $username);
     $element->fillField($this->getDrupalText('password_field'), $password);
