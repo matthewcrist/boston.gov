@@ -8,32 +8,35 @@
  * - $title: Title of card as link to content.
  * - $description: Description of card content.
  */
+
+ $classes = 'cd m-t400 g--3';
 ?>
-<div class="grid-card <?php print $classes; ?>">
-  <?php if (isset($link)): ?>
-    <a href="<?php print $link; ?>">
-  <?php endif; ?>
+
+<?php if (isset($link)): ?>
+  <a href="<?php print $link; ?>" class="<?php print $classes ?>">
+<?php else: ?>
+  <div class="<?php print $classes ?>">
+<?php endif; ?>
   <?php if (isset($image)): ?>
-  <div class="grid-card__image">
+  <div class="cd-ic">
     <?php print $image; ?>
   </div>
   <?php endif; ?>
-  <div class="grid-card__text">
-    <h3 class="grid-card__title">
+  <div class="cd-c">
+    <h3 class="cd-t">
       <?php print $title; ?>
     </h3>
     <?php if (isset($subtitle)): ?>
-    <div class="grid-card__subtitle">
-      <?php print $subtitle; ?>
-    </div>
+      <div class="cd-st">
+        <?php print $subtitle; ?>
+      </div>
     <?php endif; ?>
-    <?php if (isset($description)): ?>
-    <div class="grid-card__description">
+    <div class="cd-d">
       <?php print $description; ?>
     </div>
   </div>
-  <?php endif; ?>
-  <?php if (isset($link)): ?>
-    </a>
-  <?php endif; ?>
-</div>
+<?php if (isset($link)): ?>
+  </a>
+<?php else: ?>
+  </div>
+<?php endif; ?>
