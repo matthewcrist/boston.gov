@@ -573,3 +573,14 @@ function bos_profile_update_7020() {
   );
   module_enable($enabled_modules);
 }
+
+/**
+ * Adds grid of cards
+ */
+function bos_profile_update_7021() {
+  $enabled_modules = array(
+    'bos_component_card',
+    'bos_component_grid_of_cards',
+  );
+  module_enable($enabled_modules);
+}
