@@ -31,6 +31,13 @@ function boston_hub_preprocess_page(array &$variables) {
       $variables['field_work_email'] = strtolower($field_work_email);
     }
 
+    // Create necessary page classes
+    if ($variables['node']->type !== 'tabbed_content' && $variables['node']->type !== 'how_to') {
+      $page_class = 'page';
+    } else {
+      $page_class = NULL;
+    }
+
     // Set profile_avatar variable to profile picture if it exists,
     // otherwise set it to default image.
     if (!empty($profile_main) && !empty($profile_main->field_user_picture)) {
@@ -54,8 +61,13 @@ function boston_hub_preprocess_page(array &$variables) {
     $variables['logout_path'] = base_path() . 'user/logout';
     $variables['change_password_path'] = 'https://oimprd.cityofboston.gov/admin/faces/pages/pwdmgmt.jspx?backUrl=https%3A%2F%2Foif.cityofboston.gov%2Ffed%2Fidp%2Finitiatesso%3Fproviderid%3Dthehubprod';
   }
+
+  $current_path = current_path();
+
+  $page_class_alert = $page_class;
+
   if (!empty($variables['page']['content']['system_main']['search_results'])) {
-    $current_path = current_path();
+    $page_class_alert = 'page page--wa';
     if (!empty($variables['page']['content']['system_main']['search_results']['#results'])) {
       drupal_set_title('Search Results');
       if (!empty($variables['page']['content']['system_main']['suggestions'])) {
@@ -76,6 +88,12 @@ function boston_hub_preprocess_page(array &$variables) {
       drupal_set_title('Employee Search');
     }
   }
+
+  // If we are on the employee directory page, change the title.
+  if (strpos($current_path, 'search') === 0 || strpos($current_path, 'my-profile') === 0 || strpos($current_path, 'user') === 0) {
+    $page_class_alert = 'page page--wa';
+  }
+
   // If this is a 404 page, $variables['search_block'] will exist but be NULL,
   // so load this site's search block.
   if (is_null($variables['search_block'])) {
@@ -84,49 +102,25 @@ function boston_hub_preprocess_page(array &$variables) {
     $variables['search_id'] = 'block-hub-blocks-search';
   }
 
-  // Create necessary page classes
-  if ($variables['node']->type !== 'tabbed_content' && $variables['node']->type !== 'how_to') {
-    $page_class = 'page';
-  } else {
-    $page_class = NULL;
-  }
-
-  if (!empty($variables['page']['site_alert'])) {
-    // Get the active alert node
-    $site_alert_id = bos_core_active_site_alert();
-    $site_alert = node_load($site_alert_id);
-
-    $excluded_nodes = [];
-    $excluded = field_get_items('node', $site_alert, 'field_excluded_nodes');
-
-    if ($excluded) {
-      foreach ($excluded as $key => $value) {
-        $excluded_nodes[] = $value['target_id'];
+  if (isset($variables['node'])) {
+    if ($variables['node']->type !== 'landing_page') {
+      if ($variables['node']->type !== 'tabbed_content' && $variables['node']->type !== 'how_to') {
+        $page_class_alert = 'page page--wa';
+      } else {
+        $page_class_alert = 'page page--wa page--nm';
       }
+    } else {
+      $page_class_alert = 'page';
     }
 
-    if (isset($variables['node'])) {
-      if (!in_array($variables['node']->nid, $excluded_nodes)) {
-        if (!empty($variables['page']['site_alert']) && $variables['node']->type !== 'landing_page') {
-          if ($variables['node']->type !== 'tabbed_content' && $variables['node']->type !== 'how_to') {
-            $page_class = 'page page--wa';
-          } else {
-            $page_class = 'page page--wa page--nm';
-          }
-        } else {
-          $page_class = 'page';
-        }
-
-        if (drupal_is_front_page() && !empty($variables['page']['site_alert'])) {
-          $page_class = 'page';
-        }
-      } else {
-        $variables['exclude_alert'] = TRUE;
-      }
+    if (drupal_is_front_page()) {
+      $page_class_alert = 'page';
+      $page_class = 'page';
     }
   }
 
   $variables['page_class'] = $page_class;
+  $variables['page_class_alert'] = $page_class_alert;
 }
 
 /**
@@ -334,6 +328,18 @@ function boston_hub_preprocess_entity(&$variables, $hook) {
   $function = __FUNCTION__ . '_' . $variables['entity_type'];
   if (function_exists($function)) {
     $function($variables, $hook);
+  }
+}
+
+/**
+ * Hides user menu
+ *
+ */
+function boston_hub_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+  global $user;
+
+  if ($user && !in_array('administrator', array_values($user->roles))) {
+    unset($data['tabs']);
   }
 }
 

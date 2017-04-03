@@ -52,6 +52,9 @@ function boston_theme() {
     'nav_js' => array(
       'template' => 'templates/snippets/nav-js',
     ),
+    'alert_js' => array(
+      'template' => 'templates/snippets/alert-js',
+    ),
     'profile_address' => array(
       'variables' => array(
         'address' => NULL,
@@ -121,6 +124,10 @@ function boston_preprocess_html(array &$variables, $hook) {
   // A variable to define the cache buster
   $buster = variable_get('css_js_query_string', '0');
   $variables['cache_buster'] = $buster;
+
+  if (isset($_GET['response_type']) && $_GET['response_type'] == 'embed') {
+    $variables['theme_hook_suggestions'][] = 'html__embed';
+  }
 
   // A variable to define the asset url
   $variables['asset_url'] = variable_get('asset_url', 'https://patterns.boston.gov');
@@ -334,6 +341,10 @@ function boston_html_head_alter(&$head) {
  * Implements hook_preprocess_page().
  */
 function boston_preprocess_page(array &$variables) {
+  if (isset($_GET['response_type']) && $_GET['response_type'] == 'embed') {
+    $variables['theme_hook_suggestions'][] = 'page__embed';
+  }
+
   // A variable to define the cache buster
   $variables['cache_buster'] = variable_get('css_js_query_string', '0');
   $variables['asset_url'] = variable_get('asset_url', 'https://patterns.boston.gov');
@@ -423,42 +434,30 @@ function boston_preprocess_page(array &$variables) {
     $page_class = NULL;
   }
 
-  if (!empty($variables['page']['site_alert'])) {
-    // Get the active alert node
-    $site_alert_id = bos_core_active_site_alert();
-    $site_alert = node_load($site_alert_id);
+  $page_class_alert = $page_class;
+  $target_id = NULL;
 
-    $excluded_nodes = [];
-    $excluded = field_get_items('node', $site_alert, 'field_excluded_nodes');
+  if (isset($variables['node'])) {
+    $target_id = $variables['node']->nid;
 
-    if ($excluded) {
-      foreach ($excluded as $key => $value) {
-        $excluded_nodes[] = $value['target_id'];
+    if ($variables['node']->type !== 'landing_page') {
+      if ($variables['node']->type !== 'tabbed_content' && $variables['node']->type !== 'how_to') {
+        $page_class_alert = 'page page--wa';
+      } else {
+        $page_class_alert = 'page page--wa page--nm';
       }
+    } else {
+      $page_class_alert = 'page';
     }
 
-    if (isset($variables['node'])) {
-      if (!in_array($variables['node']->nid, $excluded_nodes)) {
-        if (!empty($variables['page']['site_alert']) && $variables['node']->type !== 'landing_page') {
-          if ($variables['node']->type !== 'tabbed_content' && $variables['node']->type !== 'how_to') {
-            $page_class = 'page page--wa';
-          } else {
-            $page_class = 'page page--wa page--nm';
-          }
-        } else {
-          $page_class = 'page';
-        }
-
-        if (drupal_is_front_page() && !empty($variables['page']['site_alert'])) {
-          $page_class = 'page page--wa page--fp';
-        }
-      } else {
-        $variables['exclude_alert'] = TRUE;
-      }
+    if (drupal_is_front_page()) {
+      $page_class_alert = 'page page--wa page--fp';
     }
   }
 
+  $variables['target_id'] = $target_id;
   $variables['page_class'] = $page_class;
+  $variables['page_class_alert'] = $page_class_alert;
 }
 
 /**
@@ -703,6 +702,14 @@ function boston_preprocess_accessibility_toolbar(&$variables) {
 function boston_preprocess_node_site_alert(&$variables) {
   $item = field_get_items('node', $variables['node'], 'field_theme');
 
+  $excluded_nodes = [];
+  $excluded = field_get_items('node', $variables['node'], 'field_excluded_nodes');
+  if ($excluded) {
+    foreach ($excluded as $key => $value) {
+      $excluded_nodes[] = $value['target_id'];
+    }
+  }
+
   if ($item && $item[0]) {
     $variables['block_theme'] = $item[0]['value'];
   }
@@ -711,6 +718,8 @@ function boston_preprocess_node_site_alert(&$variables) {
     $variables['icon'] = file_get_contents(drupal_realpath(trim(render($variables['content']['field_icon'][0]))));
     $variables['icon'] = filter_xss($variables['icon'], explode(' ', BOS_CORE_SVG_ELEMENTS));
   }
+
+  $variables['excluded_nodes'] = $excluded_nodes;
 }
 
 /**
@@ -719,18 +728,21 @@ function boston_preprocess_node_site_alert(&$variables) {
 function boston_preprocess_node_event(&$variables) {
   $components_field = $variables['field_components']['und'];
   $comp_entity_id_array = array();
-  foreach ($components_field as $comp) {
-    $comp_entity_id_array[] = $comp['value'];
-  }
 
-  $components = entity_load('paragraphs_item', $components_field);
-  if (!empty($components)) {
-    foreach ($components as $comp) {
-      $video = field_get_items('paragraphs_item', $comp, 'field_live_stream');
-      if (!empty($video)) {
-        $variables['live_stream_active'] = 1;
-      } else {
-        $variables['live_stream_active'] = 0;
+  $variables['live_stream_active'] = 0;
+
+  if ($components_field) {
+    foreach ($components_field as $comp) {
+      $comp_entity_id_array[] = $comp['value'];
+    }
+
+    $components = entity_load('paragraphs_item', $components_field);
+    if (!empty($components)) {
+      foreach ($components as $comp) {
+        $video = field_get_items('paragraphs_item', $comp, 'field_live_stream');
+        if (!empty($video)) {
+          $variables['live_stream_active'] = 1;
+        }
       }
     }
   }
@@ -1714,6 +1726,33 @@ function boston_preprocess_paragraphs_item_text(&$variables) {
   if ($background_image !== FALSE) {
     $variables['classes_array'][] = $background_image[0]['value'];
   }
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ */
+function boston_preprocess_paragraphs_item_hero_image(&$variables) {
+  // Provide a class on the text paragraph entity wrapper indicating what
+  // the background image of the component should be, if one is specified.
+  $has_background = true;
+  $background_image = field_get_items('paragraphs_item', $variables['paragraphs_item'], 'field_image');
+
+  if ($background_image[0]['uri']) {
+    $xlarge_image = image_style_url('rep_wide_2000x700custom_boston_desktop_2x', $background_image[0]['uri']);
+    $large_image = image_style_url('rep_wide_2000x700custom_boston_desktop_1x', $background_image[0]['uri']);
+    $medium_image = image_style_url('rep_wide_2000x700custom_boston_tablet_2x', $background_image[0]['uri']);
+    $small_image = image_style_url('rep_wide_2000x700custom_boston_mobile_2x', $background_image[0]['uri']);
+  } else {
+    $has_background = false;
+  }
+
+  // Set variables for the page
+  $variables['has_background'] = $has_background;
+  $variables['xlarge_image'] = $xlarge_image;
+  $variables['large_image'] = $large_image;
+  $variables['medium_image'] = $medium_image;
+  $variables['small_image'] = $small_image;
+  $variables['asset_url'] = variable_get('asset_url', 'https://patterns.boston.gov');
 }
 
 /**
