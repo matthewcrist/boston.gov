@@ -531,3 +531,14 @@ function bos_core_update_7030() {
   );
   module_enable($enabled_modules);
 }
+
+/**
+ * Updates for 4/20/2017.
+ */
+function bos_core_update_7031() {
+  $enabled_modules = array(
+    'bos_views_reusable_content',
+    'bos_component_reusable',
+  );
+  module_enable($enabled_modules);
+}
