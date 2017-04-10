@@ -1,0 +1,7 @@
+<?php
+/**
+ * @file
+ * Code for the bos_views_reusable_content feature.
+ */
+
+include_once 'bos_views_reusable_content.features.inc';
