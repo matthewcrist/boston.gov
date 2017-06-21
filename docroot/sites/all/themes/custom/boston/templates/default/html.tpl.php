@@ -20,6 +20,8 @@
     <link href='<?php print $asset_url ?>/css/ie.css?<?php print $cache_buster ?>' rel='stylesheet' type='text/css'>
   <![endif]-->
 
+  <link rel="stylesheet" href="<?php print $asset_url ?>/css/print.css?<?php print $cache_buster ?>" type="text/css" media="print" />
+
   <?php if ($default_mobile_metatags): ?>
     <meta name="viewport" content="width=device-width, initial-scale=1">
   <?php endif; ?>
